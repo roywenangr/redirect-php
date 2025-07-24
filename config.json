@@ -1,0 +1,10 @@
+{
+  "apple": [
+    "https://apple-site1.com",
+    "https://apple-site2.com"
+  ],
+  "other": [
+    "https://other-site1.com",
+    "https://other-site2.com"
+  ]
+}
