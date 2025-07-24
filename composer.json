@@ -1,5 +1,5 @@
 {
-  "name": "simple-redirect-apple-filter",
+  "name": "roywenangr/redirect-php",
   "description": "PHP redirect app with Apple User-Agent filtering for Heroku",
   "require": {}
 }
